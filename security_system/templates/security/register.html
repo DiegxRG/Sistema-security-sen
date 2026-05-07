@@ -1,0 +1,290 @@
+{% extends "security/base.html" %}
+
+{% block title %}Registrar Entrada / Salida{% endblock %}
+{% block page_title %}Registrar Entrada / Salida{% endblock %}
+{% block page_subtitle %}Operación del día — Caseta de seguridad{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <!-- ═══════════════ ENTRY SECTION ═══════════════ -->
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+            <div class="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center">
+                <i data-lucide="log-in" class="w-5 h-5 text-emerald-600"></i>
+            </div>
+            <div>
+                <h3 class="text-base font-semibold text-gray-900">Registrar Entrada</h3>
+                <p class="text-xs text-gray-500">Selecciona al guardia y su turno</p>
+            </div>
+        </div>
+        
+        <div class="p-6">
+            <form id="entry-form" class="space-y-4">
+                <!-- Personnel Select -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Guardia</label>
+                    <select id="entry-personnel" required
+                            class="w-full border border-gray-200 rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all bg-gray-50">
+                        <option value="">— Seleccionar guardia —</option>
+                        {% for person in available_for_entry %}
+                        <option value="{{ person.id }}" data-shift="{{ person.assignedShift }}">
+                            {{ person.firstName }} {{ person.lastName }} — DNI: {{ person.documentId }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    {% if not available_for_entry %}
+                    <p class="text-xs text-amber-600 mt-2">⚠ Todos los guardias activos ya tienen una entrada registrada.</p>
+                    {% endif %}
+                </div>
+                
+                <!-- Shift Select -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Turno</label>
+                    <select id="entry-shift" required
+                            class="w-full border border-gray-200 rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all bg-gray-50">
+                        {% for shift in all_shifts %}
+                        <option value="{{ shift.id }}">{{ shift.name }} {% if shift.startTime %}({{ shift.startTime }} – {{ shift.endTime }}){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Submit -->
+                <button type="submit" id="entry-btn"
+                        class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2">
+                    <i data-lucide="check" class="w-5 h-5"></i>
+                    <span id="entry-btn-text">Registrar Entrada</span>
+                </button>
+            </form>
+            
+            <div id="entry-result" class="hidden mt-4 p-4 rounded-xl text-sm"></div>
+        </div>
+    </div>
+    
+    <!-- ═══════════════ EXIT SECTION ═══════════════ -->
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+            <div class="w-10 h-10 bg-violet-50 rounded-xl flex items-center justify-center">
+                <i data-lucide="log-out" class="w-5 h-5 text-violet-600"></i>
+            </div>
+            <div>
+                <h3 class="text-base font-semibold text-gray-900">Registrar Salida</h3>
+                <p class="text-xs text-gray-500">Personal actualmente adentro: <strong>{{ active_logs|length }}</strong></p>
+            </div>
+        </div>
+        
+        <div class="p-6">
+            {% if active_logs %}
+            <div class="space-y-3 max-h-[500px] overflow-y-auto">
+                {% for log in active_logs %}
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-blue-50/50 transition-colors border border-gray-100">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 text-xs font-bold">
+                            {{ log.personnelName|truncatechars:2|upper }}
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">{{ log.personnelName }}</p>
+                            <p class="text-xs text-gray-500">Entrada: {{ log.entryTime|date:"H:i" }} — {{ log.cargo }}</p>
+                        </div>
+                    </div>
+                    <button onclick="openExitModal('{{ log.id }}', '{{ log.personnelName }}')"
+                            class="text-xs bg-violet-600 hover:bg-violet-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-1">
+                        <i data-lucide="log-out" class="w-3 h-3"></i> Salida
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="p-8 text-center">
+                <i data-lucide="inbox" class="w-12 h-12 text-gray-300 mx-auto mb-3"></i>
+                <p class="text-gray-500 text-sm">No hay personal adentro en este momento</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════ EXIT MODAL ═══════════════ -->
+<div id="exit-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl animate-fade-in">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <div>
+                <h3 class="text-base font-semibold text-gray-900">Registrar Salida</h3>
+                <p class="text-sm text-gray-500" id="exit-guard-name"></p>
+            </div>
+            <button onclick="closeExitModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        
+        <form id="exit-form" class="p-6 space-y-4">
+            <input type="hidden" id="exit-log-id">
+            
+            <!-- Exit Reason -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Motivo de salida *</label>
+                <select id="exit-reason" required onchange="toggleReasonDetail()"
+                        class="w-full border border-gray-200 rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all bg-gray-50">
+                    <option value="">— Seleccionar motivo —</option>
+                    {% for reason in exit_reasons %}
+                    <option value="{{ reason }}">{{ reason }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Reason Detail (shown when "Otro" is selected) -->
+            <div id="reason-detail-wrapper" class="hidden">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Detalle del motivo *</label>
+                <input type="text" id="exit-reason-detail" placeholder="Especifique el motivo..."
+                       class="w-full border border-gray-200 rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all bg-gray-50">
+            </div>
+            
+            <!-- Destination Area -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Área de destino *</label>
+                <select id="exit-area" required
+                        class="w-full border border-gray-200 rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all bg-gray-50">
+                    <option value="">— Seleccionar área —</option>
+                    {% for area in all_areas %}
+                    <option value="{{ area.id }}">{{ area.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div id="exit-result" class="hidden mt-2 p-3 rounded-xl text-sm"></div>
+            
+            <div class="flex gap-3 pt-2">
+                <button type="button" onclick="closeExitModal()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 rounded-xl transition-colors">
+                    Cancelar
+                </button>
+                <button type="submit" id="exit-btn" class="flex-1 bg-violet-600 hover:bg-violet-700 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
+                    <i data-lucide="check" class="w-4 h-4"></i>
+                    <span id="exit-btn-text">Registrar Salida</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Auto-select shift when a guard is selected (uses their assigned shift)
+    document.getElementById('entry-personnel').addEventListener('change', function() {
+        const selected = this.options[this.selectedIndex];
+        const assignedShift = selected.dataset.shift;
+        if (assignedShift) {
+            document.getElementById('entry-shift').value = assignedShift;
+        }
+    });
+    
+    // Entry form submission
+    document.getElementById('entry-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('entry-btn');
+        const btnText = document.getElementById('entry-btn-text');
+        const resultDiv = document.getElementById('entry-result');
+        
+        const personnelId = document.getElementById('entry-personnel').value;
+        const shiftId = document.getElementById('entry-shift').value;
+        
+        if (!personnelId || !shiftId) return;
+        
+        btn.disabled = true;
+        btnText.textContent = 'Registrando...';
+        
+        try {
+            const res = await fetch('/security/api/entry/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ personnelId, shiftId }),
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                resultDiv.className = 'mt-4 p-4 rounded-xl text-sm bg-emerald-50 text-emerald-800 border border-emerald-200';
+                resultDiv.textContent = '✅ ' + data.message;
+                resultDiv.classList.remove('hidden');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                throw new Error(data.error);
+            }
+        } catch (error) {
+            resultDiv.className = 'mt-4 p-4 rounded-xl text-sm bg-red-50 text-red-800 border border-red-200';
+            resultDiv.textContent = '❌ ' + error.message;
+            resultDiv.classList.remove('hidden');
+            btn.disabled = false;
+            btnText.textContent = 'Registrar Entrada';
+        }
+    });
+    
+    // Exit modal functions
+    function openExitModal(logId, guardName) {
+        document.getElementById('exit-log-id').value = logId;
+        document.getElementById('exit-guard-name').textContent = guardName;
+        document.getElementById('exit-modal').classList.remove('hidden');
+        document.getElementById('exit-reason').value = '';
+        document.getElementById('exit-area').value = '';
+        document.getElementById('exit-reason-detail').value = '';
+        document.getElementById('reason-detail-wrapper').classList.add('hidden');
+        document.getElementById('exit-result').classList.add('hidden');
+        lucide.createIcons();
+    }
+    
+    function closeExitModal() {
+        document.getElementById('exit-modal').classList.add('hidden');
+    }
+    
+    function toggleReasonDetail() {
+        const reason = document.getElementById('exit-reason').value;
+        const wrapper = document.getElementById('reason-detail-wrapper');
+        if (reason === 'Otro') {
+            wrapper.classList.remove('hidden');
+        } else {
+            wrapper.classList.add('hidden');
+        }
+    }
+    
+    // Exit form submission
+    document.getElementById('exit-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('exit-btn');
+        const btnText = document.getElementById('exit-btn-text');
+        const resultDiv = document.getElementById('exit-result');
+        
+        const logId = document.getElementById('exit-log-id').value;
+        const exitReason = document.getElementById('exit-reason').value;
+        const exitReasonDetail = document.getElementById('exit-reason-detail').value;
+        const destinationAreaId = document.getElementById('exit-area').value;
+        
+        if (!logId || !exitReason || !destinationAreaId) return;
+        
+        btn.disabled = true;
+        btnText.textContent = 'Registrando...';
+        
+        try {
+            const res = await fetch('/security/api/exit/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ logId, exitReason, exitReasonDetail, destinationAreaId }),
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                resultDiv.className = 'mt-2 p-3 rounded-xl text-sm bg-emerald-50 text-emerald-800 border border-emerald-200';
+                resultDiv.textContent = '✅ ' + data.message;
+                resultDiv.classList.remove('hidden');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                throw new Error(data.error);
+            }
+        } catch (error) {
+            resultDiv.className = 'mt-2 p-3 rounded-xl text-sm bg-red-50 text-red-800 border border-red-200';
+            resultDiv.textContent = '❌ ' + error.message;
+            resultDiv.classList.remove('hidden');
+            btn.disabled = false;
+            btnText.textContent = 'Registrar Salida';
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sistema de Seguridad{% endblock %} — SENATI</title>
+    <meta name="description" content="Sistema de Control de Entrada y Salida para Personal de Seguridad — SENATI">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50:'#eff6ff', 100:'#dbeafe', 200:'#bfdbfe', 300:'#93c5fd', 400:'#60a5fa', 500:'#3b82f6', 600:'#2563eb', 700:'#1d4ed8', 800:'#1e40af', 900:'#1e3a8a', 950:'#172554' },
+                        senati: { dark: '#0f172a', blue: '#1B3A5C', accent: '#2563eb', light: '#f1f5f9' },
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                },
+            },
+        }
+    </script>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        * { font-family: 'Inter', system-ui, sans-serif; }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
+        /* Smooth transitions */
+        .sidebar-link { transition: all 0.2s ease; }
+        .sidebar-link:hover { transform: translateX(4px); }
+        .sidebar-link.active { background: rgba(37, 99, 235, 0.15); border-right: 3px solid #2563eb; }
+        
+        /* Card hover effect */
+        .card-hover { transition: all 0.3s ease; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); }
+        
+        /* Fade in animation */
+        @keyframes fadeInUp { 
+            from { opacity: 0; transform: translateY(10px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+        .animate-fade-in { animation: fadeInUp 0.4s ease-out; }
+        
+        /* Pulse dot for active status */
+        @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+        
+        /* Toast notification */
+        .toast { animation: slideIn 0.3s ease-out, fadeOut 0.3s ease-in 4.7s; animation-fill-mode: forwards; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+    </style>
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="h-full bg-gray-50">
+    {% if firebase_user %}
+    <!-- ═══════════════════ AUTHENTICATED LAYOUT ═══════════════════ -->
+    <div class="flex h-full">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-senati-dark flex flex-col shadow-2xl z-20 fixed h-full">
+            <!-- Logo / Brand -->
+            <div class="p-5 border-b border-slate-700/50">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-lg">
+                        <i data-lucide="shield-check" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-white font-bold text-sm tracking-wide">SENATI</h1>
+                        <p class="text-slate-400 text-xs">Control de Seguridad</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Navigation -->
+            <nav class="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+                <p class="text-slate-500 text-[10px] font-semibold uppercase tracking-widest px-3 mb-2">Principal</p>
+                
+                <a href="{% url 'security:dashboard' %}" 
+                   class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-sm {% if request.path == '/security/' %}active text-white bg-slate-800{% endif %}">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                    Dashboard
+                </a>
+                
+                {% if is_operator %}
+                <a href="{% url 'security:register' %}" 
+                   class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-sm {% if 'register' in request.path %}active text-white bg-slate-800{% endif %}">
+                    <i data-lucide="user-check" class="w-4 h-4"></i>
+                    Registrar E/S
+                </a>
+                {% endif %}
+                
+                <a href="{% url 'security:logs' %}" 
+                   class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-sm {% if 'logs' in request.path %}active text-white bg-slate-800{% endif %}">
+                    <i data-lucide="list" class="w-4 h-4"></i>
+                    Registros
+                </a>
+                
+                {% if is_supervisor %}
+                <a href="{% url 'security:reports' %}" 
+                   class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-sm {% if 'reports' in request.path %}active text-white bg-slate-800{% endif %}">
+                    <i data-lucide="file-bar-chart" class="w-4 h-4"></i>
+                    Reportes
+                </a>
+                {% endif %}
+                
+                {% if is_admin %}
+                <p class="text-slate-500 text-[10px] font-semibold uppercase tracking-widest px-3 mt-6 mb-2">Administración</p>
+                
+                <a href="{% url 'security:admin_personnel' %}" 
+                   class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-sm {% if 'personnel' in request.path %}active text-white bg-slate-800{% endif %}">
+                    <i data-lucide="users" class="w-4 h-4"></i>
+                    Personal
+                </a>
+                
+                <a href="{% url 'security:admin_areas' %}" 
+                   class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-sm {% if 'areas' in request.path %}active text-white bg-slate-800{% endif %}">
+                    <i data-lucide="map-pin" class="w-4 h-4"></i>
+                    Áreas
+                </a>
+                
+                <a href="{% url 'security:admin_shifts' %}" 
+                   class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-sm {% if 'shifts' in request.path %}active text-white bg-slate-800{% endif %}">
+                    <i data-lucide="clock" class="w-4 h-4"></i>
+                    Turnos
+                </a>
+                
+                <a href="{% url 'security:admin_users' %}" 
+                   class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-sm {% if 'users' in request.path %}active text-white bg-slate-800{% endif %}">
+                    <i data-lucide="key" class="w-4 h-4"></i>
+                    Usuarios
+                </a>
+                {% endif %}
+            </nav>
+            
+            <!-- User info / Logout -->
+            <div class="p-4 border-t border-slate-700/50">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                        {{ firebase_user.name|truncatechars:2|upper }}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-white text-xs font-medium truncate">{{ firebase_user.name }}</p>
+                        <p class="text-slate-400 text-[10px] uppercase tracking-wider">{{ firebase_user.role }}</p>
+                    </div>
+                    <a href="{% url 'security:logout' %}" class="text-slate-400 hover:text-red-400 transition-colors" title="Cerrar sesión">
+                        <i data-lucide="log-out" class="w-4 h-4"></i>
+                    </a>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Main content -->
+        <main class="flex-1 ml-64 overflow-y-auto">
+            <!-- Top bar -->
+            <header class="bg-white/80 backdrop-blur-md border-b border-gray-200 px-8 py-4 sticky top-0 z-10">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-900">{% block page_title %}Dashboard{% endblock %}</h2>
+                        <p class="text-xs text-gray-500">{% block page_subtitle %}{% endblock %}</p>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <span class="text-xs text-gray-400" id="current-time"></span>
+                    </div>
+                </div>
+            </header>
+            
+            <!-- Flash messages -->
+            {% if messages %}
+            <div class="px-8 pt-4 space-y-2">
+                {% for message in messages %}
+                <div class="toast flex items-center gap-3 p-4 rounded-xl text-sm
+                    {% if message.tags == 'success' %}bg-emerald-50 text-emerald-800 border border-emerald-200
+                    {% elif message.tags == 'error' %}bg-red-50 text-red-800 border border-red-200
+                    {% elif message.tags == 'warning' %}bg-amber-50 text-amber-800 border border-amber-200
+                    {% else %}bg-blue-50 text-blue-800 border border-blue-200{% endif %}">
+                    {% if message.tags == 'success' %}<i data-lucide="check-circle" class="w-5 h-5 text-emerald-500"></i>
+                    {% elif message.tags == 'error' %}<i data-lucide="alert-circle" class="w-5 h-5 text-red-500"></i>
+                    {% else %}<i data-lucide="info" class="w-5 h-5 text-blue-500"></i>{% endif %}
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            <!-- Page content -->
+            <div class="p-8 animate-fade-in">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+    {% else %}
+    <!-- ═══════════════════ UNAUTHENTICATED LAYOUT ═══════════════════ -->
+    <div class="min-h-full">
+        {% block unauthenticated_content %}{% endblock %}
+    </div>
+    {% endif %}
+    
+    <!-- Initialize Lucide icons -->
+    <script>
+        lucide.createIcons();
+        
+        // Live clock
+        function updateClock() {
+            const el = document.getElementById('current-time');
+            if (el) {
+                const now = new Date();
+                el.textContent = now.toLocaleDateString('es-PE', {
+                    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit',
+                });
+            }
+        }
+        updateClock();
+        setInterval(updateClock, 1000);
+        
+        // Auto-dismiss toasts after 5s
+        setTimeout(() => {
+            document.querySelectorAll('.toast').forEach(t => t.remove());
+        }, 5000);
+    </script>
+    
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>
